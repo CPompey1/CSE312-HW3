@@ -15,7 +15,7 @@ class Request:
         if request.__len__()> 0:
             #debug line
             with open('requests','a') as file:
-                    print(request.decode(),file=file)
+                    print(request,file=file)
             while bytesByLine[numEmptyLines] == b'':
                 numEmptyLines+=1
             bytesByLine = bytesByLine[numEmptyLines:]
@@ -25,22 +25,23 @@ class Request:
                     self.method = firstLineFieleds[0].strip(b' ').decode()
                     self.path = firstLineFieleds[1].strip(b' ').decode()
                     self.http_version = firstLineFieleds[2].split(b'/')[1].decode()      
-                elif line == bytesByLine[len(bytesByLine) -1] and not headerPassed:
-                    pass
-                elif line == b'' and not headerPassed:
+                elif line == b'' and not headerPassed: #and contentype contains multipart
                     headerPassed = True 
-                elif not headerPassed:
+                elif not headerPassed: # need to know how were in first part 
                     #headers
                     #spaces dont always exist
                     lineHeaderFields = line.split(b':')
+                    #adjust for two part header type with boundary
                     rawKey = lineHeaderFields[0]
                     rawValue = line[len(rawKey):] 
                     value = rawValue.strip(b':').strip(b' ')
                     key = rawKey.strip(b' ').decode()
                     self.headers[key] = value.decode()
-                elif headerPassed:  
+                elif headerPassed:# and not contentType contains multipart  
                     #body
                     self.body += line
-        
+                #elif line == boundary pass
+                #elif headerPassed and contentType contains multipart
+                    #parse line as second part
         if (self.path == '/profile-pic'):
             print(self.body)

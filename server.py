@@ -100,7 +100,7 @@ def path2ContentType(filepath: str) -> bytes:
             print("ERROR: UNREGISTERED FILE TYPE")
             return b"ERROR"
 def main():
-    host = "localhost"
+    host = "0.0.0.0"
     port = 8080
 
     socketserver.TCPServer.allow_reuse_address = True
