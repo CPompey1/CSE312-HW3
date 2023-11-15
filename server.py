@@ -68,7 +68,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             visitCount = 0
             cookieHeader = b''
             #test in incognito
-            if request.path in Endpoints.ENDPOINT_DICT.keys():
+            if request.path.split('/')[1] in Endpoints.ENDPOINT_DICT.keys():
                 responsebuffer = Endpoints.parseEndpoint(request,responsebuffer)
             # if request.path == '/visit-counter':
             #     responsebuffer = visitCounter(request,responsebuffer)
@@ -149,8 +149,8 @@ def initChatMessages():
     return 
 def main():
     host = "localhost"
-    port = 8080
-
+    port = 8081
+    initChatMessages()
     socketserver.TCPServer.allow_reuse_address = True
 
     server = socketserver.TCPServer((host, port), MyTCPHandler)

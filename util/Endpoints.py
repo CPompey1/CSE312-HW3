@@ -18,16 +18,19 @@ CRLF = b'\r\n'
 NOSNIFF = b'X-Content-Type-Options: nosniff'
 WORKDIR = os.getcwd()
 TOKENSALT = None
+ENDPOINT_DICT = None
 chatMessagesDb = MongoClient('localhost',27017)['ChatMessages']
 def parseEndpoint(request,responseBufferIn):
-    ENDPOINT_DICT = {'/chat-message': chatMessage,
-                 '/chat-history': chatHistory,
-                 '/register': register,
-                 '/login':login}
-    if request.path.__contains__('/chat-message') and request.method == 'DELETE':
+    global ENDPOINT_DICT
+    ENDPOINT_DICT = {'chat-message': chatMessage,
+                 'chat-history': chatHistory,
+                 'register': register,
+                 'login':login}
+
+    if request.path.__contains__('chat-message') and request.method == 'DELETE':
         return chatMessageDelete(request,responseBufferIn)
          
-    return ENDPOINT_DICT[request.path](request,responseBufferIn)
+    return ENDPOINT_DICT[request.path.strip('/')](request,responseBufferIn)
     
 def blankEndpoint(requestIn,responseBufferIn):
     global chatMessagesDb
@@ -66,11 +69,11 @@ def login (requestIn,responseBufferIn):
     responsebody = b""
     cookies = b''
     loginsCollection = chatMessagesDb['logins']
-    rawLogin = dict(subString.split('=') for subString in requestIn.body.split('&'))
+    rawLogin = dict(subString.split(b'=') for subString in requestIn.body.split(b'&'))
     
-    possibleUsers = loginsCollection.find({'username':rawLogin['username_login']})
+    possibleUsers = loginsCollection.find({'username':rawLogin[b'username_login'].decode()})
     for user in possibleUsers:
-        if user['passwordHash'] ==  bcrypt.hashpw(rawLogin['password_login'].encode(),user['salt']):
+        if user['passwordHash'] ==  bcrypt.hashpw(rawLogin[b'password_login'],user['salt']):
             found = True
             print(F'USER AUTHENTICATED')
             #get tokens collection
@@ -106,12 +109,12 @@ def register(requestIn,responseBufferIn):
     responsebody = b""
     global chatMessagesDb
     loginsCollection = chatMessagesDb['logins']
-    rawLogin = dict(subString.split('=') for subString in requestIn.body.split('&'))
+    rawLogin = dict(subString.split(b'=') for subString in requestIn.body.split(b'&'))
 
-    login = {'username':rawLogin['username_reg'],
+    login = {'username':rawLogin[b'username_reg'].decode(),
              'salt':bcrypt.gensalt(),
              'passwordHash':None}
-    login['passwordHash'] = bcrypt.hashpw(rawLogin['password_reg'].encode(),login['salt'])
+    login['passwordHash'] = bcrypt.hashpw(rawLogin[b'password_reg'],login['salt'])
     id = loginsCollection.insert_one(login)
     
 
@@ -289,7 +292,7 @@ def path2ContentType(filepath: str) -> bytes:
         except KeyError:
             print("ERROR: UNREGISTERED FILE TYPE")
             return b"ERROR"
-ENDPOINT_DICT = {'/chat-message': chatMessage,
-                 '/chat-history': chatHistory,
-                 '/register': register,
-                 '/login':login}
+ENDPOINT_DICT = {'chat-message': chatMessage,
+                 'chat-history': chatHistory,
+                 'register': register,
+                 'login':login}

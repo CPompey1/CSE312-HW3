@@ -43,5 +43,6 @@ class Request:
                 #elif line == boundary pass
                 #elif headerPassed and contentType contains multipart
                     #parse line as second part
+        print(request)
         if (self.path == '/profile-pic'):
             print(self.body)
