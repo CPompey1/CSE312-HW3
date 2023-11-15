@@ -1,7 +1,12 @@
 import socketserver
 import sys
+import bcrypt
+
+from pymongo import MongoClient
+import pymongo
 from util.request import Request
 import os
+from  util import Endpoints
 CONTENT_TYPE_DICT = {'html': b'Content-Type: text/html;charset=UTF-8',
                            'js': b'Content-Type: text/javascript;charset=UTF-8',
                            'jpg': b'Content-Type: image/jpeg',
@@ -14,7 +19,8 @@ CRLF = b'\r\n'
 NOSNIFF = b'X-Content-Type-Options: nosniff'
 WORKDIR = os.getcwd()
 TOKENSALT = None
-
+mongoClient = None
+chatMessagesDb = None
 class MyTCPHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
@@ -62,20 +68,22 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             visitCount = 0
             cookieHeader = b''
             #test in incognito
-            if request.path == '/visit-counter':
-                responsebuffer = visitCounter(request,responsebuffer)
-            elif request.path == '/chat-message':
-                responsebuffer = chatMessage(requestIn=request,responseBufferIn=responsebuffer)
-            elif request.path == '/chat-history':
-                responsebuffer = chatHistory(requestIn=request,responseBufferIn=responsebuffer)      
-            elif request.path == '/register':
-                responsebuffer = register(requestIn=request,responseBufferIn=responsebuffer)
-            elif request.path == '/login':
-                responsebuffer = login(requestIn=request,responseBufferIn=responsebuffer)
-            elif request.path.__contains__('/chat-message/') and request.method == 'DELETE':
-                responsebuffer = chatMessageDelete(requestIn=request,responseBufferIn=responsebuffer)
+            if request.path in Endpoints.ENDPOINT_DICT.keys():
+                responsebuffer = Endpoints.parseEndpoint(request,responsebuffer)
+            # if request.path == '/visit-counter':
+            #     responsebuffer = visitCounter(request,responsebuffer)
+            # elif request.path == '/chat-message':
+            #     responsebuffer = chatMessage(requestIn=request,responseBufferIn=responsebuffer)
+            # elif request.path == '/chat-history':
+            #     responsebuffer = chatHistory(requestIn=request,responseBufferIn=responsebuffer)      
+            # elif request.path == '/register':
+            #     responsebuffer = register(requestIn=request,responseBufferIn=responsebuffer)
+            # elif request.path == '/login':
+            #     responsebuffer = login(requestIn=request,responseBufferIn=responsebuffer)
+            # elif request.path.__contains__('/chat-message/') and request.method == 'DELETE':
+            #     responsebuffer = chatMessageDelete(requestIn=request,responseBufferIn=responsebuffer)
             else:   
-                responsebody = b"404 File Not found"
+                responsebody = b"404 Resource Not found"
                 #stats line
                 responsebuffer += b"404" + SPACE + b"NOTOK" + CRLF
 
@@ -90,6 +98,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                 #Body
                 responsebuffer+= responsebody
             self.request.sendall(responsebuffer)
+            
 def path2ContentType(filepath: str) -> bytes:
         out = b''
         extension = filepath.split(".")[1]
@@ -99,8 +108,47 @@ def path2ContentType(filepath: str) -> bytes:
         except KeyError:
             print("ERROR: UNREGISTERED FILE TYPE")
             return b"ERROR"
+def initChatMessages():
+    global mongoClient 
+    global chatMessagesDb
+    global TOKENSALT
+    global numMessages
+    mongoClient = client = MongoClient('localhost',27017)
+    
+   
+    serverStarted = False
+    while not serverStarted:
+        try:
+            with pymongo.timeout(5):
+                client.list_database_names()
+            serverStarted = True
+            chatMessagesDb = client['ChatMessages'] 
+            Endpoints.chatMessagesDb = client['ChatMessages'] 
+        except pymongo.errors.ServerSelectionTimeoutError:
+            #start database 
+            print('Server not started')
+        
+     #check if token salt is generated, do so if not
+    tokenSaltCol = chatMessagesDb['tokensalt']
+    salt = list(tokenSaltCol.find())
+    if len(salt) == 0:
+        TOKENSALT = bcrypt.gensalt()
+        tokenSaltCol.insert_one({'salt':TOKENSALT})
+    else:
+        TOKENSALT = salt[0]['salt']
+    
+     #Initialize num Messages
+    numMessagesCol = chatMessagesDb['numMessages']
+    numMessagesList = list(numMessagesCol.find())
+    if len(numMessagesList) == 0:
+        numMessages = 0
+        numMessagesCol.insert_one({'numMessages':numMessages})
+    else:
+        numMessages = numMessagesList[0]['numMessages']
+        
+    return 
 def main():
-    host = "0.0.0.0"
+    host = "localhost"
     port = 8080
 
     socketserver.TCPServer.allow_reuse_address = True
