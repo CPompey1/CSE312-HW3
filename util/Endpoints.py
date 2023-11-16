@@ -6,6 +6,7 @@ from pymongo import MongoClient
 import pytz
 import json
 import bcrypt
+from util.Global import *
 CONTENT_TYPE_DICT = {'html': b'Content-Type: text/html;charset=UTF-8',
                            'js': b'Content-Type: text/javascript;charset=UTF-8',
                            'jpg': b'Content-Type: image/jpeg',
@@ -21,17 +22,20 @@ TOKENSALT = None
 ENDPOINT_DICT = None
 chatMessagesDb = MongoClient('localhost',27017)['ChatMessages']
 def parseEndpoint(request,responseBufferIn):
-    global ENDPOINT_DICT
-    ENDPOINT_DICT = {'chat-message': chatMessage,
-                 'chat-history': chatHistory,
-                 'register': register,
-                 'login':login}
+    # global ENDPOINT_DICT
+    # ENDPOINT_DICT = {'chat-message': chatMessage,
+    #              'chat-history': chatHistory,
+    #              'register': register,
+    #              'login':login,
+    #              'profile-pic': profile-pic}
 
     if request.path.__contains__('chat-message') and request.method == 'DELETE':
         return chatMessageDelete(request,responseBufferIn)
          
     return ENDPOINT_DICT[request.path.strip('/')](request,responseBufferIn)
     
+def profilePic(requestIn,responseBufferIn):
+    pass
 def blankEndpoint(requestIn,responseBufferIn):
     global chatMessagesDb
     responsebody = b""
@@ -86,11 +90,11 @@ def login (requestIn,responseBufferIn):
             expiration = (pytz.timezone('US/Eastern').localize(datetime.now()) +
                            timedelta(hours=7))
 
-            salt = TOKENSALT
+            salt = DB.TOKENSALT
 
             #store user,token, salt, and expiration in database
             tokensCollection.insert_one({'username':user['username'],
-                                         'token': bcrypt.hashpw(randomToken.encode(),TOKENSALT)
+                                         'token': bcrypt.hashpw(randomToken.encode(),DB.TOKENSALT)
                                          })
             #set token as cookie   
             cookies = setCookie(cookies,
@@ -170,7 +174,7 @@ def chatMessage(requestIn,responseBufferIn):
     cookies = getCookies(requestIn)
     if cookies != None and cookies.keys().__contains__('token'):
         #check if hashed token  existws
-        tokenMatches = list(tokenCollection.find({'token':(bcrypt.hashpw(cookies['token'].encode(),TOKENSALT))}))
+        tokenMatches = list(tokenCollection.find({'token':(bcrypt.hashpw(cookies['token'].encode(),DB.TOKENSALT))}))
         if len(tokenMatches) > 0:
             username = tokenMatches[0]['username']
         print(f'NUM TOKEN MATCHES: {len(tokenMatches)}')
@@ -295,4 +299,5 @@ def path2ContentType(filepath: str) -> bytes:
 ENDPOINT_DICT = {'chat-message': chatMessage,
                  'chat-history': chatHistory,
                  'register': register,
-                 'login':login}
+                 'login':login,
+                 'profile-pic': profilePic}

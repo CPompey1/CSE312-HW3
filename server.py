@@ -4,9 +4,11 @@ import bcrypt
 
 from pymongo import MongoClient
 import pymongo
+from util.Database import Database
 from util.request import Request
 import os
 from  util import Endpoints
+from util import Global
 CONTENT_TYPE_DICT = {'html': b'Content-Type: text/html;charset=UTF-8',
                            'js': b'Content-Type: text/javascript;charset=UTF-8',
                            'jpg': b'Content-Type: image/jpeg',
@@ -110,32 +112,30 @@ def path2ContentType(filepath: str) -> bytes:
             return b"ERROR"
 def initChatMessages():
     global mongoClient 
-    global chatMessagesDb
+    global chatMessagesDb 
     global TOKENSALT
     global numMessages
-    mongoClient = client = MongoClient('localhost',27017)
-    
-   
-    serverStarted = False
-    while not serverStarted:
-        try:
-            with pymongo.timeout(5):
-                client.list_database_names()
-            serverStarted = True
-            chatMessagesDb = client['ChatMessages'] 
-            Endpoints.chatMessagesDb = client['ChatMessages'] 
-        except pymongo.errors.ServerSelectionTimeoutError:
-            #start database 
-            print('Server not started')
+    chatMessagesDb = Global.DB.db
+    # serverStarted = False
+    # while not serverStarted:
+    #     try:
+    #         with pymongo.timeout(5):
+    #             client.list_database_names()
+    #         serverStarted = True
+    #         chatMessagesDb = client['ChatMessages'] 
+    #         Endpoints.chatMessagesDb = client['ChatMessages'] 
+    #     except pymongo.errors.ServerSelectionTimeoutError:
+    #         #start database 
+    #         print('Server not started')
         
-     #check if token salt is generated, do so if not
-    tokenSaltCol = chatMessagesDb['tokensalt']
-    salt = list(tokenSaltCol.find())
-    if len(salt) == 0:
-        TOKENSALT = bcrypt.gensalt()
-        tokenSaltCol.insert_one({'salt':TOKENSALT})
-    else:
-        TOKENSALT = salt[0]['salt']
+    #  #check if token salt is generated, do so if not
+    # tokenSaltCol = chatMessagesDb['tokensalt']
+    # salt = list(tokenSaltCol.find())
+    # if len(salt) == 0:
+    #     TOKENSALT = Endpoints.TOKENSALT = bcrypt.gensalt()
+    #     tokenSaltCol.insert_one({'salt':TOKENSALT})
+    # else:
+    #     TOKENSALT = salt[0]['salt']
     
      #Initialize num Messages
     numMessagesCol = chatMessagesDb['numMessages']

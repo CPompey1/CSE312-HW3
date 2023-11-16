@@ -1,3 +1,4 @@
+import bcrypt
 import pymongo
 class Database:
     
@@ -15,6 +16,15 @@ class Database:
                 #start database 
                 print('Server not started')
                 
+        #check if token salt is generated, do so if not
+        tokenSaltCol = self.db['tokensalt']
+        salt = list(tokenSaltCol.find())
+        if len(salt) == 0:
+            self.TOKENSALT = bcrypt.gensalt()
+            tokenSaltCol.insert_one({'salt':self.TOKENSALT})
+        else:
+            self.TOKENSALT = salt[0]['salt']
+            
     def createCollection(self,name :str):
         self.collections[name] = self.client[name]
         
