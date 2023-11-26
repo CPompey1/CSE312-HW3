@@ -4,7 +4,7 @@ class Database:
     
     def __init__(self,db_name: str, host: str, port: int):
         self.client = pymongo.MongoClient(host,port)
-        self.collections = {}
+        
         serverStarted = False
         while not serverStarted:
             try:
@@ -15,7 +15,12 @@ class Database:
             except pymongo.errors.ServerSelectionTimeoutError:
                 #start database 
                 print('Server not started')
-                
+        self.collections = {'tokens':self.db['tokens'],
+                            'messages':self.db['messages'],
+                            'logins':self.db['logins'],
+                            'tokens':self.db['tokens'],
+                            'ProfilePictures':self.db['ProfilePictures'],
+                            'numMessages':self.db['numMessages']}
         #check if token salt is generated, do so if not
         tokenSaltCol = self.db['tokensalt']
         salt = list(tokenSaltCol.find())
@@ -39,12 +44,12 @@ class Database:
     
     def findOne_asList(self,collection: str,keysToSearch: dict):
         cursor = self.collections[collection].find_one()
-        list = []
-        for ele in cursor:
-            document = {}
-            for key in ele.keys():
-                document[key] = ele[key]
-            list.append(document)
+        list = [cursor]
+        # for ele in cursor:
+        #     document = {}
+        #     for key in ele.keys():
+        #         document[key] = ele[key]
+        #     list.append(document)
         return list
     
     def findAll_asList(self,collection: str, data: dict):

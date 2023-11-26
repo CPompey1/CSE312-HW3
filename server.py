@@ -35,6 +35,15 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         print(received_data)
         print("--- end of data ---\n\n")
         request = Request(received_data)
+        if 'Content-Length' in request.headers:
+            remainingData =  int(request.headers['Content-Length']) - len(request.body)
+            while (remainingData > int(request.headers['Content-Length']) * 0.10):
+            # if remainingData > int(request.headers['Content-Length']):
+                    received_data = self.request.recv(remainingData)
+                    request = Request(received_data,request)
+                    remainingData =  int(request.headers['Content-Length']) - len(request.body)   
+                    print(f'Received Data: {len(received_data)} | Remaining Data: {remainingData}')     
+        
         responsebuffer = b''
 
         #Add http version 
@@ -71,19 +80,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             cookieHeader = b''
             #test in incognito
             if request.path.split('/')[1] in Endpoints.ENDPOINT_DICT.keys():
-                responsebuffer = Endpoints.parseEndpoint(request,responsebuffer)
-            # if request.path == '/visit-counter':
-            #     responsebuffer = visitCounter(request,responsebuffer)
-            # elif request.path == '/chat-message':
-            #     responsebuffer = chatMessage(requestIn=request,responseBufferIn=responsebuffer)
-            # elif request.path == '/chat-history':
-            #     responsebuffer = chatHistory(requestIn=request,responseBufferIn=responsebuffer)      
-            # elif request.path == '/register':
-            #     responsebuffer = register(requestIn=request,responseBufferIn=responsebuffer)
-            # elif request.path == '/login':
-            #     responsebuffer = login(requestIn=request,responseBufferIn=responsebuffer)
-            # elif request.path.__contains__('/chat-message/') and request.method == 'DELETE':
-            #     responsebuffer = chatMessageDelete(requestIn=request,responseBufferIn=responsebuffer)
+                responsebuffer = Endpoints.parseEndpoint(self,request,responsebuffer)
             else:   
                 responsebody = b"404 Resource Not found"
                 #stats line
@@ -99,7 +96,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
                 #Body
                 responsebuffer+= responsebody
-            self.request.sendall(responsebuffer)
+                self.request.sendall(responsebuffer)
             
 def path2ContentType(filepath: str) -> bytes:
         out = b''
@@ -116,28 +113,6 @@ def initChatMessages():
     global TOKENSALT
     global numMessages
     chatMessagesDb = Global.DB.db
-    # serverStarted = False
-    # while not serverStarted:
-    #     try:
-    #         with pymongo.timeout(5):
-    #             client.list_database_names()
-    #         serverStarted = True
-    #         chatMessagesDb = client['ChatMessages'] 
-    #         Endpoints.chatMessagesDb = client['ChatMessages'] 
-    #     except pymongo.errors.ServerSelectionTimeoutError:
-    #         #start database 
-    #         print('Server not started')
-        
-    #  #check if token salt is generated, do so if not
-    # tokenSaltCol = chatMessagesDb['tokensalt']
-    # salt = list(tokenSaltCol.find())
-    # if len(salt) == 0:
-    #     TOKENSALT = Endpoints.TOKENSALT = bcrypt.gensalt()
-    #     tokenSaltCol.insert_one({'salt':TOKENSALT})
-    # else:
-    #     TOKENSALT = salt[0]['salt']
-    
-     #Initialize num Messages
     numMessagesCol = chatMessagesDb['numMessages']
     numMessagesList = list(numMessagesCol.find())
     if len(numMessagesList) == 0:
@@ -148,12 +123,12 @@ def initChatMessages():
         
     return 
 def main():
-    host = "localhost"
-    port = 8081
+    host = "0.0.0.0"
+    port = 8080
     initChatMessages()
     socketserver.TCPServer.allow_reuse_address = True
 
-    server = socketserver.TCPServer((host, port), MyTCPHandler)
+    server = socketserver.ThreadingTCPServer((host, port), MyTCPHandler)
 
     print("Listening on port " + str(port))
     sys.stdout.flush()

@@ -1,3 +1,5 @@
+import base64
+import hashlib
 import os
 import random
 import string
@@ -7,6 +9,8 @@ import pytz
 import json
 import bcrypt
 from util.Global import *
+from util.Helpers import *
+import threading
 CONTENT_TYPE_DICT = {'html': b'Content-Type: text/html;charset=UTF-8',
                            'js': b'Content-Type: text/javascript;charset=UTF-8',
                            'jpg': b'Content-Type: image/jpeg',
@@ -21,25 +25,100 @@ WORKDIR = os.getcwd()
 TOKENSALT = None
 ENDPOINT_DICT = None
 chatMessagesDb = MongoClient('localhost',27017)['ChatMessages']
-def parseEndpoint(request,responseBufferIn):
-    # global ENDPOINT_DICT
-    # ENDPOINT_DICT = {'chat-message': chatMessage,
-    #              'chat-history': chatHistory,
-    #              'register': register,
-    #              'login':login,
-    #              'profile-pic': profile-pic}
-
+def parseEndpoint(tcpHandler,request,responseBufferIn):
     if request.path.__contains__('chat-message') and request.method == 'DELETE':
-        return chatMessageDelete(request,responseBufferIn)
-         
-    return ENDPOINT_DICT[request.path.strip('/')](request,responseBufferIn)
+        return chatMessageDelete(tcpHandler,request,responseBufferIn)
+    if 'websocket' in request.path:
+        ENDPOINT_DICT[request.path.strip('/')](tcpHandler,request,responseBufferIn)
+    else:
+        return ENDPOINT_DICT[request.path.strip('/')](tcpHandler,request,responseBufferIn)
     
-def profilePic(requestIn,responseBufferIn):
-    pass
-def blankEndpoint(requestIn,responseBufferIn):
-    global chatMessagesDb
+
+def computeKey(key):
+    GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+    #append guid for websockets
+    key += GUID
+
+    #hash key
+    hashedKey = hashlib.sha1(key.encode()).hexdigest()
+
+    #base64 encode key
+    base64Encoded = base64.b64encode(bytes.fromhex(hashedKey)).decode()
+    return base64Encoded
+def initWebsocket(tcpHandler,requestIn, responseBufferIn):
+    responsebody = b""
+    tokenCollection = DB.collections['tokens']
+    username = 'Guest'
+    print("Suck up ya bumbaclaugt")
+
+    #check if user is authenticated
+    cookies = getCookies(requestIn)
+    if cookies != None and cookies.keys().__contains__('token'):
+        #check if hashed token  existws
+        tokenMatches = list(tokenCollection.find({'token':(bcrypt.hashpw(cookies['token'].encode(),DB.TOKENSALT))}))
+        if len(tokenMatches) > 0:
+            username = tokenMatches[0]['username']
+        print(f'NUM TOKEN MATCHES: {len(tokenMatches)}')
+
+    #Get websocket key
+    key = requestIn.headers['Sec-WebSocket-Key']
+    
+    #set key in cookie of response
+    computedKey = computeKey(key)
+    cookie = setCookie(b'',{'Sec-WebSocket-Accept':computedKey})
+    
+    
+
+    #Headers
+    responseBufferIn += b"101" + SPACE + b"Switching Protocols" + CRLF
+    responseBufferIn += b"Content-Type: text/plain" + CRLF
+    responseBufferIn += b"Content-Length: " + str(len(responsebody)).encode() + CRLF
+    responseBufferIn += b'Connection: Upgrade' + CRLF
+    responseBufferIn += b'Upgrade: websocket' + CRLF
+    responseBufferIn += b'Sec-WebSocket-Accept: ' + computedKey.encode() + CRLF
+    responseBufferIn += NOSNIFF + CRLF  
+
+    #body
+    responseBufferIn += CRLF + responsebody
+    
+    print(responseBufferIn)
+    #send accept request response
+    tcpHandler.request.send(responseBufferIn)
+    
+    # t = threading.Thread(target=handleChatWSFrames,args=(tcpHandler,username))
+    # t.start()
+    #handle websocket 
+    handleChatWSFrames(tcpHandler,username)
+def profilePic(tcpHandler,requestIn,responseBufferIn):
     responsebody = b""
 
+    #code 
+    #authenticate
+    authenticateOutput = authenticate(requestIn)
+    if authenticateOutput == None:
+        responsebody = b'Must be logged in'
+    else:
+        user,token = authenticateOutput
+        picBytes = requestIn.body
+        fileName = requestIn.headerFlags['Content-Disposition']['filename'].strip("\"").strip("\'")
+        fullFileName = f'{user}_{fileName}'
+        with open(f'{os.getcwd()}/public/image/{fullFileName}','wb') as file:
+            file.write(picBytes)
+        DB.insertOne('ProfilePictures',{'username':user,
+                                        'Profile_picture_name': fullFileName})
+        responsebody = b'Succesfully uploaded image'
+
+    #Headers
+    responseBufferIn += b"Content-Type: text/plain" + CRLF
+    responseBufferIn += b"Content-Length: " + str(len(responsebody)).encode() + CRLF
+    responseBufferIn += NOSNIFF + CRLF
+
+    responseBufferIn += CRLF + responsebody
+    tcpHandler.request.send(responseBufferIn) 
+def blankEndpoint(tcpHandler,requestIn,responseBufferIn):
+    global chatMessagesDb
+    responsebody = b""
+ 
     #code 
 
     #Headers
@@ -48,9 +127,9 @@ def blankEndpoint(requestIn,responseBufferIn):
     responseBufferIn += NOSNIFF + CRLF
 
     responseBufferIn += CRLF + responsebody
-    return responseBufferIn
+    tcpHandler.request.send(responseBufferIn) 
 
-def chatMessageDelete(requestIn,responseBufferIn):
+def chatMessageDelete(tcpHandler,requestIn,responseBufferIn):
     global chatMessagesDb
     chatMessagesCol = chatMessagesDb['messages']
     responsebody = b""
@@ -67,8 +146,8 @@ def chatMessageDelete(requestIn,responseBufferIn):
     responseBufferIn += NOSNIFF + CRLF
 
     responseBufferIn += CRLF + responsebody
-    return responseBufferIn
-def login (requestIn,responseBufferIn):
+    tcpHandler.request.send(responseBufferIn) 
+def login (tcpHandler,requestIn,responseBufferIn):
     global chatMessagesDb
     responsebody = b""
     cookies = b''
@@ -88,7 +167,7 @@ def login (requestIn,responseBufferIn):
             
             #Set expiration date of auth token to 1 hour in futue
             expiration = (pytz.timezone('US/Eastern').localize(datetime.now()) +
-                           timedelta(hours=7))
+                           timedelta(hours=20))
 
             salt = DB.TOKENSALT
 
@@ -103,13 +182,14 @@ def login (requestIn,responseBufferIn):
 
 
     #Headers
+    responseBufferIn += b"200" + SPACE + b"OK" + CRLF
     responseBufferIn += b"Content-Type: text/plain" + CRLF
     responseBufferIn += b"Content-Length: " + str(len(responsebody)).encode() + CRLF
     responseBufferIn += NOSNIFF + CRLF + cookies + CRLF
 
     responseBufferIn += CRLF + responsebody
-    return responseBufferIn
-def register(requestIn,responseBufferIn):
+    tcpHandler.request.send(responseBufferIn) 
+def register(tcpHandler,requestIn,responseBufferIn):
     responsebody = b""
     global chatMessagesDb
     loginsCollection = chatMessagesDb['logins']
@@ -129,7 +209,7 @@ def register(requestIn,responseBufferIn):
 
     #body
     responseBufferIn += CRLF + responsebody
-    return responseBufferIn
+    tcpHandler.request.send(responseBufferIn) 
 
 def replaceDangeChar(input):
     return input.replace('&','&amp').replace('<','&lt').replace('>','&gt')
@@ -159,13 +239,12 @@ def replaceDangeChar(input):
     
     # return input
         
-def chatMessage(requestIn,responseBufferIn):
+def chatMessage(tcpHandler,requestIn,responseBufferIn):
     global chatMessagesDb,numMessages
     
     messageCollection = chatMessagesDb['messages']
     tokenCollection = chatMessagesDb['tokens']
     numMessagesCollection = chatMessagesDb['numMessages']
-    numMessages = list(numMessagesCollection.find())[0]['numMessages']
     username = 'Guest'
     #insert request.nessage  into database as ID | GUEST | MESSAGE 
     responsebody = b""
@@ -199,23 +278,23 @@ def chatMessage(requestIn,responseBufferIn):
 
     #Body
     responseBufferIn+= responsebody
-    return responseBufferIn
-def chatHistory(requestIn,responseBufferIn):
+    tcpHandler.request.send(responseBufferIn) 
+def chatHistory(tcpHandler,requestIn,responseBufferIn):
     global chatMessagesDb
     keysToExtract = {'id':None,'username':None,'message':None}
     messages = chatMessagesDb['messages']
     cursor = messages.find()
-    #ex = cursor.fromkeys(keysToExtract)
     messageHistory = []
-    #for key in keysToExtract:
-    #    messageHistory[messages].append(keysToExtract)
     i = 0
     for ele in cursor:
         message = {}
         for key in keysToExtract.keys():
-            if key == 'message':
-                ele[key] = replaceDangeChar(ele[key])
-            message[key] = ele[key]          
+            try:
+                if key == 'message':
+                    ele[key] = replaceDangeChar(ele[key])
+                message[key] = ele[key]    
+            except KeyError:
+                print(f'ERROR: invalid document in chat messages: {ele}')      
         messageHistory.append(message)
         i+=1
 
@@ -233,9 +312,9 @@ def chatHistory(requestIn,responseBufferIn):
     responseBufferIn += CRLF
     #Body
     responseBufferIn+= responsebody
-    return responseBufferIn
+    tcpHandler.request.send(responseBufferIn) 
 
-#appends set cookie directive  to buffer with specified cookies and one key value pair
+#appends set cookie directive  to buffer with specified cookies and one key value pair or pass empty buffer to get cookie string
 def setCookie(bufferIn,cookiePairs,flags=None):
     if flags == None:
         bufferIn += b'Set-Cookie: '
@@ -260,18 +339,6 @@ def setCookie(bufferIn,cookiePairs,flags=None):
 
 #gets and returns all cookies in a dictionary. If there are no cookies, returns None. 
 def getCookies(requestIn):
-    # if requestIn.headers['Cookie'].__contains__(';'):
-    #     cookiesDict = dict(subString.split('=') for subString in requestIn.headers['Cookie'].split('; '))
-    
-    #only one cookie
-    # else:
-    #     try:
-    #         onlyCookie = requestIn.headers['Cookie'].split('=')
-    #         cookiesDict = dict({onlyCookie[0]:onlyCookie[1]})
-    #     except IndexError:
-    #         cookiesDict = None
-    
-    # return cookiesDict
     if requestIn.headers.keys().__contains__('Cookie'):
         cookies = requestIn.headers['Cookie']
         cookieArr = cookies.split('; ')
@@ -300,4 +367,5 @@ ENDPOINT_DICT = {'chat-message': chatMessage,
                  'chat-history': chatHistory,
                  'register': register,
                  'login':login,
-                 'profile-pic': profilePic}
+                 'profile-pic': profilePic,
+                 'websocket':initWebsocket}
