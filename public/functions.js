@@ -111,3 +111,20 @@ function welcome() {
     // use this line to start your video without having to click a button. Helpful for debugging
     // startVideo();
 }
+
+function loadProfilePic(){
+    const request = new XMLHttpRequest();
+    request.onreadystatechange = function () {
+        if (this.readyState === 4 && this.status === 200) {
+            const user = JSON.parse(this.response);
+            picturePath = user.pictureName;
+            document.getElementById("profile-pic-div").innerHTML += "<img src='public/image/" + picturePath + "'/>";
+            // "<img src='public/image/default.png'/>";
+            // "<img src='public/image/" + "default.png" +"/>";
+            
+            
+        }
+    }
+    request.open("GET", "/loadProfilePic");
+    request.send();
+}

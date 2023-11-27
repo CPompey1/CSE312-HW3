@@ -32,8 +32,43 @@ def parseEndpoint(tcpHandler,request,responseBufferIn):
         ENDPOINT_DICT[request.path.strip('/')](tcpHandler,request,responseBufferIn)
     else:
         return ENDPOINT_DICT[request.path.strip('/')](tcpHandler,request,responseBufferIn)
-    
 
+def loadProfilePic(tcpHandler,requestIn,responseBufferIn):
+    responsebody = b""
+    
+    payload = {'pictureName':'default.png'}
+
+    #code 
+    out = authenticate(requestIn)
+
+    if out != None:
+        username,token = out
+        profilePicDoc = DB.findOne('ProfilePictures',{'username':username})
+        if profilePicDoc != None:
+            payload['pictureName'] = f"{profilePicDoc['Profile_picture_name']}"
+
+    responsebody = json.dumps(payload).encode()
+    #Headers
+    responseBufferIn += b"200" + SPACE + b"OK" + CRLF
+    responseBufferIn += b"Content-Type: text/plain" + CRLF
+    responseBufferIn += b"Content-Length: " + str(len(responsebody)).encode() + CRLF
+    responseBufferIn += NOSNIFF + CRLF
+
+    responseBufferIn += CRLF + responsebody
+    tcpHandler.request.send(responseBufferIn) 
+def blankEndpoint(tcpHandler,requestIn,responseBufferIn):
+    responsebody = b""
+ 
+    #code 
+
+    #Headers
+    responseBufferIn += b"200" + SPACE + b"OK" + CRLF
+    responseBufferIn += b"Content-Type: text/plain" + CRLF
+    responseBufferIn += b"Content-Length: " + str(len(responsebody)).encode() + CRLF
+    responseBufferIn += NOSNIFF + CRLF
+
+    responseBufferIn += CRLF + responsebody
+    tcpHandler.request.send(responseBufferIn)
 def computeKey(key):
     GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
     #append guid for websockets
@@ -88,7 +123,8 @@ def initWebsocket(tcpHandler,requestIn, responseBufferIn):
     # t = threading.Thread(target=handleChatWSFrames,args=(tcpHandler,username))
     # t.start()
     #handle websocket 
-    handleChatWSFrames(tcpHandler,username)
+    CHATSOCKETS.handle_socket(tcpHandler,username,DB)
+    # handleChatWSFrames(tcpHandler,username)
 def profilePic(tcpHandler,requestIn,responseBufferIn):
     responsebody = b""
 
@@ -114,20 +150,7 @@ def profilePic(tcpHandler,requestIn,responseBufferIn):
     responseBufferIn += NOSNIFF + CRLF
 
     responseBufferIn += CRLF + responsebody
-    tcpHandler.request.send(responseBufferIn) 
-def blankEndpoint(tcpHandler,requestIn,responseBufferIn):
-    global chatMessagesDb
-    responsebody = b""
- 
-    #code 
-
-    #Headers
-    responseBufferIn += b"Content-Type: text/plain" + CRLF
-    responseBufferIn += b"Content-Length: " + str(len(responsebody)).encode() + CRLF
-    responseBufferIn += NOSNIFF + CRLF
-
-    responseBufferIn += CRLF + responsebody
-    tcpHandler.request.send(responseBufferIn) 
+    tcpHandler.request.send(responseBufferIn)  
 
 def chatMessageDelete(tcpHandler,requestIn,responseBufferIn):
     global chatMessagesDb
@@ -141,6 +164,7 @@ def chatMessageDelete(tcpHandler,requestIn,responseBufferIn):
     
 
     #Headers
+    responseBufferIn += b"200" + SPACE + b"OK" + CRLF
     responseBufferIn += b"Content-Type: text/plain" + CRLF
     responseBufferIn += b"Content-Length: " + str(len(responsebody)).encode() + CRLF
     responseBufferIn += NOSNIFF + CRLF
@@ -368,4 +392,5 @@ ENDPOINT_DICT = {'chat-message': chatMessage,
                  'register': register,
                  'login':login,
                  'profile-pic': profilePic,
-                 'websocket':initWebsocket}
+                 'websocket':initWebsocket,
+                 'loadProfilePic': loadProfilePic}

@@ -70,12 +70,12 @@ class Frame:
                 if self.payloadLen == 126:
                     #payloadlength is extended by 2 byte
                     #no idea if this'll work
-                    self.payload = int.from_bytes(frame[i:i+2],byteorder="big") & 0x7fffff
+                    self.payload = int.from_bytes(frame[i:i+2],byteorder="little") & 0x7fffff
                     i+2
                 #elif payload length == 127 
                 elif self.payloadLen == 127:
                     #payloadlength is extended by 8 bytes
-                    self.payload = int.from_bytes(frame[i:i+8],byteorder="big") & 0x7fffffffffffffffff 
+                    self.payload = int.from_bytes(frame[i:i+8],byteorder="little") & 0x7fffffffffffffffff 
                     i+=8
                 else:
                     print("Error: Large ass buffer not implemented")

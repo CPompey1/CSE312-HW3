@@ -4,7 +4,8 @@
     <link rel="stylesheet" type="text/css" href="public/style.css"/>
 </head>
 
-<body onload="welcome();">
+<body onload="welcome();
+              loadProfilePic();">
 
 <div class="title">
     <h2>CSE312 App</h2>
@@ -55,7 +56,7 @@
     </div>
 
 
-    <div class="user-list">
+    <div  class="user-list">
 
 
         Register:
@@ -90,6 +91,10 @@
             <br/>
             <input type="submit" value="Post">
         </form>
+        
+        <div id="profile-pic-div" class="my_image">
+        </div>
+        
 
 
     </div>

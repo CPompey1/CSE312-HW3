@@ -36,9 +36,10 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         print("--- end of data ---\n\n")
         request = Request(received_data)
         if 'Content-Length' in request.headers:
-            remainingData =  int(request.headers['Content-Length']) - len(request.body)
-            while (remainingData > int(request.headers['Content-Length']) * 0.10):
+            remainingData =  int(request.headers['Content-Length']) - request.len
+            while (remainingData > int(request.headers['Content-Length']) * 0.07):
             # if remainingData > int(request.headers['Content-Length']):
+            # while (remainingData > 0):
                     received_data = self.request.recv(remainingData)
                     request = Request(received_data,request)
                     remainingData =  int(request.headers['Content-Length']) - len(request.body)   
