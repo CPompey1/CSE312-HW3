@@ -29,7 +29,7 @@ class Request:
                 else:
                     exiBuffer.body += request[runningLen:runningLen + len(line)]
                     if b'PNG' in line:
-                        self.body+=CRLF
+                        exiBuffer.body+=CRLF
                 i+=1
                 runningLen += len(line) + len(CRLF)
                 exiBuffer.len += len(line) + len(CRLF)
@@ -90,12 +90,13 @@ class Request:
                         out = header2DictsB(line)
                         self.headers.update(out[0])
                         self.headerFlags.update(out[1])
-                    elif self.headerPassed:# and not contentType contains multipart  
+                    elif self.headerPassed and not self.bodyParsed:# and not contentType contains multipart  
                         #body
                         if self.boundaryPassed == 0:
-                            self.body += line
+                            # self.body += line
+                            pass
                         else:
-                            self.body += request[self.len:self.len + len(line)]
+                            self.body += request[self.len:len(request)-1]
                             if b'PNG' in line:
                                 self.body+=CRLF
                             self.bodyParsed = True

@@ -26,7 +26,7 @@ class Frame:
                 elif payload == 127:
                     self.bufferToSend += (payloadLen & 0x7f).to_bytes(length=9,byteorder= "little")
                 else:
-                    print("ERROR: Large ass buffer not implemented")
+                    print("ERROR: Large  buffer not implemented")
             
             #skip masking key
             #add payload
@@ -67,18 +67,19 @@ class Frame:
 
             
             if self.payloadLen >= 126:
+                i+1
                 if self.payloadLen == 126:
                     #payloadlength is extended by 2 byte
                     #no idea if this'll work
-                    self.payload = int.from_bytes(frame[i:i+2],byteorder="little") & 0x7fffff
+                    self.payload = int.from_bytes(frame[i:i+2],byteorder="little") 
                     i+2
                 #elif payload length == 127 
                 elif self.payloadLen == 127:
                     #payloadlength is extended by 8 bytes
-                    self.payload = int.from_bytes(frame[i:i+8],byteorder="little") & 0x7fffffffffffffffff 
+                    self.payload = int.from_bytes(frame[i:i+8],byteorder="little")  
                     i+=8
                 else:
-                    print("Error: Large ass buffer not implemented")
+                    print("Error: Large  buffer not implemented")
                     self.payload == None
                     return
             else:
@@ -87,7 +88,7 @@ class Frame:
             self.mask = b''
             if self.maskBit:
                 temp = frame[i]
-                for byte in  frame[i:i+4]:
+                for byte in frame[i:i+4]:
                     self.mask+= byte.to_bytes(1,byteorder="little")
                 i+=4
             

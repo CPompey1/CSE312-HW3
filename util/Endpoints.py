@@ -84,7 +84,6 @@ def initWebsocket(tcpHandler,requestIn, responseBufferIn):
     responsebody = b""
     tokenCollection = DB.collections['tokens']
     username = 'Guest'
-    print("Suck up ya bumbaclaugt")
 
     #check if user is authenticated
     cookies = getCookies(requestIn)

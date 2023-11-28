@@ -6,9 +6,11 @@ from pymongo import MongoClient
 import pymongo
 from util.Database import Database
 from util.request import Request
+# from util.request1 import Request
 import os
 from  util import Endpoints
 from util import Global
+from threading import Lock
 CONTENT_TYPE_DICT = {'html': b'Content-Type: text/html;charset=UTF-8',
                            'js': b'Content-Type: text/javascript;charset=UTF-8',
                            'jpg': b'Content-Type: image/jpeg',
@@ -23,28 +25,29 @@ WORKDIR = os.getcwd()
 TOKENSALT = None
 mongoClient = None
 chatMessagesDb = None
+mutex = Lock()
 class MyTCPHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
-
         
-
         received_data = self.request.recv(2048)
         print(self.client_address)
         print("--- received data ---")
         print(received_data)
         print("--- end of data ---\n\n")
-        request = Request(received_data)
-        if 'Content-Length' in request.headers:
-            remainingData =  int(request.headers['Content-Length']) - request.len
-            while (remainingData > int(request.headers['Content-Length']) * 0.07):
-            # if remainingData > int(request.headers['Content-Length']):
-            # while (remainingData > 0):
-                    received_data = self.request.recv(remainingData)
-                    request = Request(received_data,request)
-                    remainingData =  int(request.headers['Content-Length']) - len(request.body)   
-                    print(f'Received Data: {len(received_data)} | Remaining Data: {remainingData}')     
-        
+        with mutex:
+
+            request = Request(received_data)
+            if 'Content-Length' in request.headers:
+                remainingData =  int(request.headers['Content-Length']) - len(request.body)
+                while (remainingData > int(request.headers['Content-Length']) * 0.10):
+                # if remainingData > int(request.headers['Content-Length']):
+                # while (remainingData > 0):
+                        received_data = self.request.recv(remainingData)
+                        request = Request(received_data,request)
+                        remainingData =  int(request.headers['Content-Length']) - len(request.body)   
+                        print(f'Received Data: {len(received_data)} | Remaining Data: {remainingData}')     
+            
         responsebuffer = b''
 
         #Add http version 
@@ -125,11 +128,11 @@ def initChatMessages():
     return 
 def main():
     host = "0.0.0.0"
-    port = 8080
+    port = 8081
     initChatMessages()
     socketserver.TCPServer.allow_reuse_address = True
 
-    server = socketserver.ThreadingTCPServer((host, port), MyTCPHandler)
+    server = socketserver.TCPServer((host, port), MyTCPHandler)
 
     print("Listening on port " + str(port))
     sys.stdout.flush()

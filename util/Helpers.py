@@ -61,7 +61,6 @@ def getCookies(request):
 def authenticate(request):
     cookies = getCookies(request)
     if cookies == None or type(cookies) == type(dict()):
-        print('ERROR: Multiple cookies not implementeed')
         return None
     token = cookies.split("=")[1]
     possibleUser = DB.findOne_asList(collection='tokens',keysToSearch={'token':bcrypt.hashpw(token.encode(),DB.TOKENSALT)})
