@@ -10,6 +10,7 @@ from util.request import Request
 import os
 from  util import Endpoints
 from util import Global
+from util.Global import *
 from threading import Lock
 CONTENT_TYPE_DICT = {'html': b'Content-Type: text/html;charset=UTF-8',
                            'js': b'Content-Type: text/javascript;charset=UTF-8',
@@ -25,7 +26,7 @@ WORKDIR = os.getcwd()
 TOKENSALT = None
 mongoClient = None
 chatMessagesDb = None
-mutex = Lock()
+# mutex = Lock()
 class MyTCPHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
@@ -35,17 +36,18 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         print("--- received data ---")
         print(received_data)
         print("--- end of data ---\n\n")
-        with mutex:
+
+        with MUTEX:
 
             request = Request(received_data)
             if 'Content-Length' in request.headers:
-                remainingData =  int(request.headers['Content-Length']) - len(request.body)
-                while (remainingData > int(request.headers['Content-Length']) * 0.10):
+                remainingData =  int(request.headers['Content-Length']) - request.bodyLen
+                # while (remainingData > int(request.headers['Content-Length']) * 0.10):
                 # if remainingData > int(request.headers['Content-Length']):
-                # while (remainingData > 0):
+                while (remainingData > 0):
                         received_data = self.request.recv(remainingData)
                         request = Request(received_data,request)
-                        remainingData =  int(request.headers['Content-Length']) - len(request.body)   
+                        remainingData =  int(request.headers['Content-Length']) - request.bodyLen   
                         print(f'Received Data: {len(received_data)} | Remaining Data: {remainingData}')     
             
         responsebuffer = b''
@@ -132,7 +134,7 @@ def main():
     initChatMessages()
     socketserver.TCPServer.allow_reuse_address = True
 
-    server = socketserver.TCPServer((host, port), MyTCPHandler)
+    server = socketserver.ThreadingTCPServer((host, port), MyTCPHandler)
 
     print("Listening on port " + str(port))
     sys.stdout.flush()

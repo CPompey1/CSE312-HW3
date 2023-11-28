@@ -11,6 +11,8 @@ class Request:
         if exiBuffer != None and len(request) > 0:
             i = 0
             runningLen = 0
+            exiBuffer.bodyParsed = False
+            if exiBuffer.headerPassed: exiBuffer.bodyLen+=len(request)
             #gonna assume only headers and body is left
             for line in bytesByLine:
                 if exiBuffer.boundary != None and exiBuffer.boundary in line:
@@ -18,21 +20,30 @@ class Request:
                 elif line == b'' and not exiBuffer.headerPassed: #and contentype contains multipart
                         if 'Content-Type' in exiBuffer.headers.keys() and 'multipart' in exiBuffer.headers['Content-Type']:
                             exiBuffer.boundary = f"{exiBuffer.headerFlags['Content-Type']['boundary']}".encode()
+                            exiBuffer.bodyLen += len(request[runningLen + len(CRLF):])
                             print('hello')
-                        else: exiBuffer.headerPassed = True
+                        else: 
+                            exiBuffer.headerPassed = True
+                            
                 elif not exiBuffer.headerPassed: # need to know how were in first part 
                         #headers
                         out = header2DictsB(line)
                         exiBuffer.headers.update(out[0])
                         exiBuffer.headerFlags.update(out[1])
                 #line is raw bytes
-                else:
-                    exiBuffer.body += request[runningLen:runningLen + len(line)]
+                elif exiBuffer.headerPassed and not exiBuffer.bodyParsed:
+                    exiBuffer.body += request[runningLen:]
                     if b'PNG' in line:
                         exiBuffer.body+=CRLF
+                    exiBuffer.bodyParsed = True
                 i+=1
-                runningLen += len(line) + len(CRLF)
-                exiBuffer.len += len(line) + len(CRLF)
+
+                if exiBuffer.headerPassed: 
+                    runningLen+=len(line)
+                    exiBuffer.len += len(line)
+                else:
+                    runningLen += len(line) + len(CRLF)
+                    exiBuffer.len += len(line) + len(CRLF)
             for classAttr in exiBuffer.__dict__.keys():
                 self.__dict__[classAttr] = exiBuffer.__dict__[classAttr]
         else:
@@ -48,6 +59,7 @@ class Request:
             self.boundaryPassed = 0
             self.boundary = None
             self.bodyParsed = False
+            self.bodyLen=0
             if request.__len__()> 0:
                 #debug line
                 while bytesByLine[numEmptyLines] == b'':
@@ -63,8 +75,10 @@ class Request:
                     elif line == b'' and not self.headerPassed: #and contentype contains multipart
                         if 'Content-Type' in self.headers.keys() and 'multipart' in self.headers['Content-Type']:
                             self.boundary = f"{self.headerFlags['Content-Type']['boundary']}".encode()
+                            self.bodyLen += len(request[self.len + len(CRLF):])
                             print('hello')
                         else: self.headerPassed = True
+                        
                         # if not 'multipart' in self.headers['Content-Type']:
                         #  headerPassed = True
 
@@ -94,23 +108,29 @@ class Request:
                         #body
                         if self.boundaryPassed == 0:
                             # self.body += line
-                            pass
+                            # self.body += request[self.len:self.len+len(line)]
+                            self.body += request[self.len:]
+                            self.bodyParsed = True
                         else:
-                            self.body += request[self.len:len(request)-1]
-                            if b'PNG' in line:
-                                self.body+=CRLF
+                            # self.body += request[self.len+len(CRLF):self.len+len(line)]
+                            self.body += request[self.len+len(CRLF):]
+                            # if b'PNG' in line:
+                            #     self.body+=CRLF
                             self.bodyParsed = True
                     # elif self.headerFlags[]line == 'self.boundary' 
                     #elif headerPassed and contentType contains multipart
                         #parse line as second part
-                    self.len += len(line) + len(CRLF)
+                    if self.headerPassed:
+                        self.len+=len(line) 
+                    else:
+                        self.len += len(line) + len(CRLF)
                     i+=1
         print(b"MY PRINTED REQUEST BODY: " + self.body)
         if (self.path == '/profile-pic'):
             # print(self.body)
             print('END OF PARSING REQUEST')
-            print(f"Giv Length:{self.headers['Content-Length']} | Parsed Length: {len(self.body)}")
-            if int(self.headers['Content-Length']) > len(self.body):
-                print(f"REMAINING BYTES: {int(self.headers['Content-Length']) - len(self.body)}")
+            print(f"Giv Length:{self.headers['Content-Length']} | Parsed Length: {self.bodyLen}")
+            if int(self.headers['Content-Length']) > self.bodyLen:
+                print(f"REMAINING BYTES: {int(self.headers['Content-Length']) - self.bodyLen}")
                 
 
