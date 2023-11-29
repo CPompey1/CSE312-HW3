@@ -12,7 +12,8 @@ class Request:
             i = 0
             runningLen = 0
             exiBuffer.bodyParsed = False
-            if exiBuffer.headerPassed: exiBuffer.bodyLen+=len(request)
+            if exiBuffer.headerPassed: 
+                exiBuffer.bodyLen+=len(request)
             #gonna assume only headers and body is left
             for line in bytesByLine:
                 if exiBuffer.boundary != None and exiBuffer.boundary in line:
@@ -77,7 +78,10 @@ class Request:
                             self.boundary = f"{self.headerFlags['Content-Type']['boundary']}".encode()
                             self.bodyLen += len(request[self.len + len(CRLF):])
                             print('hello')
-                        else: self.headerPassed = True
+                        else: 
+                            self.headerPassed = True
+                            if self.bodyLen == 0: 
+                                self.bodyLen += len(request[self.len + len(CRLF):]) 
                         
                         # if not 'multipart' in self.headers['Content-Type']:
                         #  headerPassed = True
@@ -109,7 +113,7 @@ class Request:
                         if self.boundaryPassed == 0:
                             # self.body += line
                             # self.body += request[self.len:self.len+len(line)]
-                            self.body += request[self.len:]
+                            self.body += request[self.len+len(CRLF):]
                             self.bodyParsed = True
                         else:
                             # self.body += request[self.len+len(CRLF):self.len+len(line)]

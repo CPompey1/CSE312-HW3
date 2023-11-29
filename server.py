@@ -12,6 +12,7 @@ from  util import Endpoints
 from util import Global
 from util.Global import *
 from threading import Lock
+from time import sleep
 CONTENT_TYPE_DICT = {'html': b'Content-Type: text/html;charset=UTF-8',
                            'js': b'Content-Type: text/javascript;charset=UTF-8',
                            'jpg': b'Content-Type: image/jpeg',
@@ -45,6 +46,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                 # while (remainingData > int(request.headers['Content-Length']) * 0.10):
                 # if remainingData > int(request.headers['Content-Length']):
                 while (remainingData > 0):
+                        # sleep(.5)
                         received_data = self.request.recv(remainingData)
                         request = Request(received_data,request)
                         remainingData =  int(request.headers['Content-Length']) - request.bodyLen   
@@ -130,11 +132,11 @@ def initChatMessages():
     return 
 def main():
     host = "0.0.0.0"
-    port = 8081
+    port = 8082
     initChatMessages()
     socketserver.TCPServer.allow_reuse_address = True
 
-    server = socketserver.ThreadingTCPServer((host, port), MyTCPHandler)
+    server = socketserver.TCPServer((host, port), MyTCPHandler)
 
     print("Listening on port " + str(port))
     sys.stdout.flush()
