@@ -122,7 +122,7 @@ def initWebsocket(tcpHandler,requestIn, responseBufferIn):
     # t = threading.Thread(target=handleChatWSFrames,args=(tcpHandler,username))
     # t.start()
     #handle websocket 
-    CHATSOCKETS.handle_socket(tcpHandler,username,DB)
+    CHATSOCKETS.handle_socket(tcpHandler,username,DB,MUTEX)
     # handleChatWSFrames(tcpHandler,username)
 def profilePic(tcpHandler,requestIn,responseBufferIn):
     responsebody = b""
@@ -326,6 +326,7 @@ def chatHistory(tcpHandler,requestIn,responseBufferIn):
     #for all messages in database
     #append message as JSON object to responseBody
     #Headers
+    responseBufferIn += b"200" + SPACE + b"OK" + CRLF
     responseBufferIn += b"Content-Type: application/json" + CRLF
     responseBufferIn += b"Content-Length: " + str(len(responsebody)).encode() + CRLF
     responseBufferIn += NOSNIFF + CRLF 

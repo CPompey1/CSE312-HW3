@@ -38,20 +38,19 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         print(received_data)
         print("--- end of data ---\n\n")
 
-        with MUTEX:
 
-            request = Request(received_data)
-            if 'Content-Length' in request.headers:
-                remainingData =  int(request.headers['Content-Length']) - request.bodyLen
-                # while (remainingData > int(request.headers['Content-Length']) * 0.10):
-                # if remainingData > int(request.headers['Content-Length']):
-                while (remainingData > 0):
-                        # sleep(.5)
-                        received_data = self.request.recv(remainingData)
-                        request = Request(received_data,request)
-                        remainingData =  int(request.headers['Content-Length']) - request.bodyLen   
-                        print(f'Received Data: {len(received_data)} | Remaining Data: {remainingData}')     
-            
+        request = Request(received_data)
+        if 'Content-Length' in request.headers:
+            remainingData =  int(request.headers['Content-Length']) - request.bodyLen
+            # while (remainingData > int(request.headers['Content-Length']) * 0.10):
+            # if remainingData > int(request.headers['Content-Length']):
+            while (remainingData > 0):
+                    # sleep(.5)
+                    received_data = self.request.recv(remainingData)
+                    request = Request(received_data,request)
+                    remainingData =  int(request.headers['Content-Length']) - request.bodyLen   
+                    print(f'Received Data: {len(received_data)} | Remaining Data: {remainingData}')     
+        
         responsebuffer = b''
 
         #Add http version 
@@ -136,7 +135,7 @@ def main():
     initChatMessages()
     socketserver.TCPServer.allow_reuse_address = True
 
-    server = socketserver.TCPServer((host, port), MyTCPHandler)
+    server = socketserver.ThreadingTCPServer((host, port), MyTCPHandler)
 
     print("Listening on port " + str(port))
     sys.stdout.flush()

@@ -25,6 +25,7 @@ class Request:
                             print('hello')
                         else: 
                             exiBuffer.headerPassed = True
+                            if exiBuffer.bodyLen == 0: exiBuffer.bodyLen+=len(request[runningLen + len(CRLF):])
                             
                 elif not exiBuffer.headerPassed: # need to know how were in first part 
                         #headers

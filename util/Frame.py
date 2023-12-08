@@ -18,15 +18,23 @@ class Frame:
 
             #if len(payload) < 126
             payloadLen = len(json.dumps(payload))
+            print(f"Parsing last frame...")
             if payloadLen < 126:
                 self.bufferToSend += (payloadLen & 0x7f).to_bytes(length=1,byteorder= "little")
+            
             else:
-                if payloadLen == 126:
-                    self.bufferToSend += (payloadLen & 0x7fffff).to_bytes(length=3,byteorder= "little")
-                elif payload == 127:
-                    self.bufferToSend += (payloadLen & 0x7f).to_bytes(length=9,byteorder= "little")
+                if payloadLen <= 0xffff:
+                    #encode 126
+                    self.bufferToSend += (0x7e).to_bytes(length=1,byteorder= "big")
+                    #encode actual length
+                    self.bufferToSend += (payloadLen).to_bytes(length=2,byteorder= "big")
                 else:
-                    print("ERROR: Large  buffer not implemented")
+                    #encode 127
+                    self.bufferToSend += (0x7f).to_bytes(length=1,byteorder= "big")
+                    #enode actual length
+                    self.bufferToSend += (payloadLen & 0x7fffffffffffffff).to_bytes(length=8,byteorder= "big")
+                # else:
+                #     print("ERROR: Large  buffer not implemented")
             
             #skip masking key
             #add payload
@@ -49,6 +57,7 @@ class Frame:
             #extend payload if opcode == 0
             elif self.opcode == Frame.CONTINUATION_FRAME_OP:
                 self.extend_payload(frame)
+                print("continuation")
                 return
             #parse initial frmae if opcode == 2
             elif self.opcode == Frame.TEXT_FRAME_OP:
@@ -67,16 +76,18 @@ class Frame:
 
             
             if self.payloadLen >= 126:
-                i+1
+                i+=1
                 if self.payloadLen == 126:
                     #payloadlength is extended by 2 byte
                     #no idea if this'll work
-                    self.payload = int.from_bytes(frame[i:i+2],byteorder="little") 
-                    i+2
+                    self.payloadLen = int.from_bytes(frame[i:i+2],byteorder="big") 
+                    # self.payload = int.from_bytes(frame[i:i+2],byteorder="big") 
+                    i+=2
                 #elif payload length == 127 
                 elif self.payloadLen == 127:
                     #payloadlength is extended by 8 bytes
-                    self.payload = int.from_bytes(frame[i:i+8],byteorder="little")  
+                    # self.payload = int.from_bytes(frame[i:i+8],byteorder="big") 
+                    self.payloadLen = int.from_bytes(frame[i:i+8],byteorder="big")  
                     i+=8
                 else:
                     print("Error: Large  buffer not implemented")
@@ -105,10 +116,23 @@ class Frame:
         self.payload =  b''
         for byte,i in zip(temp,range(self.payloadLen)):
             self.payload += (byte ^ self.mask[i%4]).to_bytes(1,byteorder="little")
-        
+
+    def mask_in(input,mask):
+        temp = input
+        payload =  b''
+        for byte,i in zip(temp,range(len(input))):
+            payload += (byte ^ mask[i%4]).to_bytes(1,byteorder="little")
+        return input
+    
+    
+          
     def extend_payload(self,incBuffer):
+        temp = self.payload
+        self.payload = b''
         for byte in incBuffer:
-            self.payload += byte.to_bytes(1,byteorder="little")
+            self.payload += byte.to_bytes(1,byteorder="big")
+        self.mask_paylad()
+        self.payload = temp + self.payload
 
     # def int_to_little_endian(byte_int_8):
     #     return int.from_bytes(byte_int_8.to_bytes(1,byteorder="big"),byteorder="big")
