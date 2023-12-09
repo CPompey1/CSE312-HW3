@@ -109,7 +109,7 @@ class Frame:
                 self.payload += byte.to_bytes(1,byteorder="little")
             
             #mask payload
-            self.mask_paylad()
+            # self.mask_paylad()
         
     def mask_paylad(self):
         temp = self.payload
@@ -127,12 +127,9 @@ class Frame:
     
           
     def extend_payload(self,incBuffer):
-        temp = self.payload
-        self.payload = b''
         for byte in incBuffer:
             self.payload += byte.to_bytes(1,byteorder="big")
-        self.mask_paylad()
-        self.payload = temp + self.payload
+
 
     # def int_to_little_endian(byte_int_8):
     #     return int.from_bytes(byte_int_8.to_bytes(1,byteorder="big"),byteorder="big")

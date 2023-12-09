@@ -144,6 +144,7 @@ def profilePic(tcpHandler,requestIn,responseBufferIn):
         responsebody = b'Succesfully uploaded image'
 
     #Headers
+    responseBufferIn += b"200" + SPACE + b"OK" + CRLF
     responseBufferIn += b"Content-Type: text/plain" + CRLF
     responseBufferIn += b"Content-Length: " + str(len(responsebody)).encode() + CRLF
     responseBufferIn += NOSNIFF + CRLF
@@ -204,9 +205,10 @@ def login (tcpHandler,requestIn,responseBufferIn):
                                 ['Secure','HttpOnly'])
 
 
+    responsebody += b"<head> <meta http-equiv='Refresh' content='0; URL=/' /> </head>"
     #Headers
     responseBufferIn += b"200" + SPACE + b"OK" + CRLF
-    responseBufferIn += b"Content-Type: text/plain" + CRLF
+    responseBufferIn += b'Content-Type: text/html;charset=UTF-8'+ CRLF
     responseBufferIn += b"Content-Length: " + str(len(responsebody)).encode() + CRLF
     responseBufferIn += NOSNIFF + CRLF + cookies + CRLF
 
@@ -226,7 +228,10 @@ def register(tcpHandler,requestIn,responseBufferIn):
     
 
     #Headers
-    responseBufferIn += b"Content-Type: text/plain" + CRLF
+    
+    responsebody += b"<head> <meta http-equiv='Refresh' content='0; URL=/' /> </head>"
+    responseBufferIn += b"200" + SPACE + b"OK" + CRLF
+    responseBufferIn += b'Content-Type: text/html;charset=UTF-8'+ CRLF
     responseBufferIn += b"Content-Length: " + str(len(responsebody)).encode() + CRLF
     responseBufferIn += NOSNIFF + CRLF
 
@@ -284,6 +289,7 @@ def chatMessage(tcpHandler,requestIn,responseBufferIn):
         
 
     #Headers
+    responseBufferIn += b"200" + SPACE + b"OK" + CRLF
     responseBufferIn += b"Content-Type: text/plain" + CRLF
     responseBufferIn += b"Content-Length: " + str(len(responsebody)).encode() + CRLF
     responseBufferIn += NOSNIFF + CRLF

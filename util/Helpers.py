@@ -66,8 +66,10 @@ def authenticate(request):
     possibleUser = DB.findOne_asList(collection='tokens',keysToSearch={'token':bcrypt.hashpw(token.encode(),DB.TOKENSALT)})
     if len(possibleUser) == 0:
         return None
-    user = possibleUser[0]['username']
-
+    try:
+        user = possibleUser[0]['username']
+    except TypeError:
+        return None
     return user,token    
 
 def replaceDangeChar(input):
@@ -88,5 +90,35 @@ def bytes_to_binary_string_le(the_byte):
         out += as_binary[len(as_binary)-1 - i]
     return out
 
+def getDirOfFile(path):
+    splitPath = path.split('/')
+    splitPath.remove(splitPath[len(splitPath)-1])
+    out = ''
+    for ele,i in zip(splitPath,range(len(splitPath))):
+        out +=ele
+        
+        if i != len(splitPath):
+            out += '/'
+    return out
+
+def certifyPath(path):
+    foundIdx = path.find("/public")
+    if foundIdx <0:
+        return ''
+    afterPublicImg = path[foundIdx + len("/public"):]
+    beforePublicImg = path[:foundIdx + len("/public")]
+    path = afterPublicImg.replace('../','')
+    return beforePublicImg + path
+def findDifIdx(real,created):
+    for i in range(len(real)):
+        try:
+            if real[i] != created[i]:
+                if i != 0:
+                    print(f"DIFF AT INDEX: {i}")
+                    print(f"GIVEN: {created[i-57%i+1:i+57%i+1]}")
+                    print(f"EXPECTED: {real[i-57%i+1:i+57%i+1]}")
+                    return i
+        except IndexError:
+            print(f"ERROR: Lengths dont match. Given: {len(created)} | Expected: {len(real)}")
 # if __name__ == '__main__':
 #     print(header2Dicts('Cache-Control: max-age=0'))

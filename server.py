@@ -12,6 +12,7 @@ from  util import Endpoints
 from util import Global
 from util.Global import *
 from threading import Lock
+from util.Helpers import *
 from time import sleep
 CONTENT_TYPE_DICT = {'html': b'Content-Type: text/html;charset=UTF-8',
                            'js': b'Content-Type: text/javascript;charset=UTF-8',
@@ -38,18 +39,42 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         print(received_data)
         print("--- end of data ---\n\n")
 
+        magicBuffer = (2048 * 32)
 
-        request = Request(received_data)
-        if 'Content-Length' in request.headers:
-            remainingData =  int(request.headers['Content-Length']) - request.bodyLen
-            # while (remainingData > int(request.headers['Content-Length']) * 0.10):
-            # if remainingData > int(request.headers['Content-Length']):
-            while (remainingData > 0):
-                    # sleep(.5)
+        with MUTEX:
+            request = Request(received_data)
+            if 'Content-Length' in request.headers:
+                remainingData =  int(request.headers['Content-Length']) - request.bodyLen
+                # while (remainingData > int(request.headers['Content-Length']) * 0.10):
+                # if remainingData > int(request.headers['Content-Length']):
+                while (remainingData > magicBuffer):
+                        # sleep(.5)
+                        # received_data = self.request.recv(remainingData)
+                        received_data = self.request.recv(magicBuffer)
+                        tempIdx = len(request.body)
+                        request = Request(received_data,request)
+                        remainingData =  int(request.headers['Content-Length']) - request.bodyLen 
+                        tempBuf = request.body[tempIdx:]  
+                        idx = received_data.find(b'image/jpeg\r\n\r\n') + len(b'image/jpeg\r\n\r\n')
+                        if idx != -1:
+                            tempBufReal = received_data[idx:]
+                        else:
+                            tempBufReal = received_data
+                        print(f'Received Data: {len(received_data)} | Remaining Data: {remainingData}') 
+
+                if remainingData > 0:
                     received_data = self.request.recv(remainingData)
+                    tempIdx = len(request.body)
                     request = Request(received_data,request)
-                    remainingData =  int(request.headers['Content-Length']) - request.bodyLen   
-                    print(f'Received Data: {len(received_data)} | Remaining Data: {remainingData}')     
+                    remainingData =  int(request.headers['Content-Length']) - request.bodyLen 
+                    tempBuf = request.body[tempIdx:]  
+                    idx = received_data.find(b'image/jpeg\r\n\r\n') + len(b'image/jpeg\r\n\r\n')
+                    if idx != -1:
+                        tempBufReal = received_data[idx:]
+                    else:
+                        tempBufReal = received_data
+                    print(f'Received Data: {len(received_data)} | Remaining Data: {remainingData}')  
+                
         
         responsebuffer = b''
 
@@ -61,7 +86,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             if request.path == '/':
                 path = f'{WORKDIR}/public{request.path}index.html'
             else:
-                path = f'{WORKDIR}{request.path}'
+                temp = path = f'{WORKDIR}{request.path}'
+                path = certifyPath(path)
             
             # TODO: Parse the HTTP request and use self.request.sendall(response) to send your response
             with open(path,'rb') as file:
@@ -131,7 +157,7 @@ def initChatMessages():
     return 
 def main():
     host = "0.0.0.0"
-    port = 8082
+    port = 8080
     initChatMessages()
     socketserver.TCPServer.allow_reuse_address = True
 

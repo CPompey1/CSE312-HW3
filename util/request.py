@@ -14,8 +14,14 @@ class Request:
             exiBuffer.bodyParsed = False
             if exiBuffer.headerPassed: 
                 exiBuffer.bodyLen+=len(request)
+
+            #weird edgecase
+            if exiBuffer.boundary != None and exiBuffer.boundary in bytesByLine[0] and exiBuffer.boundaryPassed == 0:
+                exiBuffer.bodyLen += len(request[runningLen:])
+                
             #gonna assume only headers and body is left
             for line in bytesByLine:
+
                 if exiBuffer.boundary != None and exiBuffer.boundary in line:
                     exiBuffer.boundaryPassed +=1
                 elif line == b'' and not exiBuffer.headerPassed: #and contentype contains multipart
@@ -25,7 +31,7 @@ class Request:
                             print('hello')
                         else: 
                             exiBuffer.headerPassed = True
-                            if exiBuffer.bodyLen == 0: exiBuffer.bodyLen+=len(request[runningLen + len(CRLF):])
+                            # if exiBuffer.bodyLen == 0: exiBuffer.bodyLen+=len(request[runningLen + len(CRLF):])
                             
                 elif not exiBuffer.headerPassed: # need to know how were in first part 
                         #headers
@@ -34,7 +40,7 @@ class Request:
                         exiBuffer.headerFlags.update(out[1])
                 #line is raw bytes
                 elif exiBuffer.headerPassed and not exiBuffer.bodyParsed:
-                    exiBuffer.body += request[runningLen:]
+                    exiBuffer.body += request[runningLen+len(CRLF):]
                     if b'PNG' in line:
                         exiBuffer.body+=CRLF
                     exiBuffer.bodyParsed = True
